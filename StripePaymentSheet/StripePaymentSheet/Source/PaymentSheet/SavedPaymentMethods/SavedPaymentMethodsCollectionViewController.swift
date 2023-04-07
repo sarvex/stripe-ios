@@ -21,7 +21,7 @@ protocol SavedPaymentMethodsCollectionViewControllerDelegate: AnyObject {
 }
 /*
  This class is largely a copy of SavedPaymentOptionsViewController, however a couple of exceptions
-  - Removes link support
+  - Removes link supportPersistablePaymentMethodOption
   - Does not save the selected payment method to the local device settings
   - Fetches customerId using the underlying backing STPCustomerContext
  */
@@ -143,6 +143,7 @@ class SavedPaymentMethodsCollectionViewController: UIViewController {
     }
     weak var delegate: SavedPaymentMethodsCollectionViewControllerDelegate?
     weak var savedPaymentMethodsSheetDelegate: SavedPaymentMethodsSheetDelegate?
+    var originalSelectedSavedPaymentMethod: PersistablePaymentMethodOption?
     var appearance = PaymentSheet.Appearance.default
 
     // MARK: - Private Properties
@@ -216,26 +217,29 @@ class SavedPaymentMethodsCollectionViewController: UIViewController {
             retrieveSelectedPaymentMethodID { paymentMethodOption, error in
                 if let error = error {
                     self.savedPaymentMethodsSheetDelegate?.didFail(with: .retrieveSelectedPaymenMethodOption(error))
-                    self.updateUI(defaultPaymentMethod: nil)
+                    self.updateUI(selectedSavedPaymentOption: nil)
                     return
                 }
-                if let defaultPaymentMethod = paymentMethodOption {
-                    self.updateUI(defaultPaymentMethod: defaultPaymentMethod)
+                if let selectedSavedPaymentOption = paymentMethodOption {
+                    self.updateUI(selectedSavedPaymentOption: selectedSavedPaymentOption)
+                    if self.originalSelectedSavedPaymentMethod == nil {
+                        self.originalSelectedSavedPaymentMethod = selectedSavedPaymentOption
+                    }
                 } else {
-                    self.updateUI(defaultPaymentMethod: nil)
+                    self.updateUI(selectedSavedPaymentOption: nil)
                 }
             }
         } else {
-            self.updateUI(defaultPaymentMethod: nil)
+            self.updateUI(selectedSavedPaymentOption: nil)
         }
     }
     
-    private func updateUI(defaultPaymentMethod: PersistablePaymentMethodOption?) {
+    private func updateUI(selectedSavedPaymentOption: PersistablePaymentMethodOption?) {
         DispatchQueue.main.async {
             // Move default to front
             var savedPaymentMethods = self.savedPaymentMethods
             if let defaultPMIndex = savedPaymentMethods.firstIndex(where: {
-                $0.stripeId == defaultPaymentMethod?.value
+                $0.stripeId == selectedSavedPaymentOption?.value
             }) {
                 let defaultPM = savedPaymentMethods.remove(at: defaultPMIndex)
                 savedPaymentMethods.insert(defaultPM, at: 0)
@@ -253,7 +257,7 @@ class SavedPaymentMethodsCollectionViewController: UIViewController {
             
             if self.configuration.autoSelectDefaultBehavior != .none {
                 // Select default
-                self.selectedViewModelIndex = self.viewModels.firstIndex(where: { $0 == defaultPaymentMethod })
+                self.selectedViewModelIndex = self.viewModels.firstIndex(where: { $0 == selectedSavedPaymentOption })
                 ?? (self.configuration.autoSelectDefaultBehavior == .defaultFirst ? 1 : nil)
             }
             
@@ -279,6 +283,22 @@ class SavedPaymentMethodsCollectionViewController: UIViewController {
         selectedViewModelIndex = nil
         collectionView.deselectItem(at: selectedIndexPath, animated: true)
         collectionView.reloadItems(at: [selectedIndexPath])
+    }
+    func didSelectDifferentPaymentMethod() -> Bool {
+        if let selectedViewModelIndex = self.selectedViewModelIndex {
+            let selectedViewModel = self.viewModels[selectedViewModelIndex]
+            if let originalSelectedSavedPaymentMethod = self.originalSelectedSavedPaymentMethod {
+                return !(selectedViewModel == originalSelectedSavedPaymentMethod)
+            } else {
+                return true
+            }
+        } else {
+            if originalSelectedSavedPaymentMethod == nil {
+                return true
+            } else {
+                return false
+            }
+        }
     }
 }
 

@@ -183,13 +183,29 @@ class SavedPaymentMethodsViewController: UIViewController {
 
         switch(mode) {
         case .selectingSaved:
-            actionButton.isHidden = true
             if let text = configuration.selectingSavedCustomHeaderText, !text.isEmpty {
                 headerLabel.text = text
             } else {
                 headerLabel.text = STPLocalizedString(
                     "Select your payment method",
                     "Title shown above a carousel containing the customer's payment methods")
+            }
+            if savedPaymentOptionsViewController.selectedPaymentOption != nil{
+                if savedPaymentOptionsViewController.didSelectDifferentPaymentMethod() {
+                    if self.actionButton.isHidden {
+                        animateHeightChange {
+                            self.actionButton.isHidden = false
+                        }
+                    }
+                } else {
+                    if !self.actionButton.isHidden {
+                        animateHeightChange {
+                            self.actionButton.isHidden = true
+                        }
+                    }
+                }
+            } else {
+                self.actionButton.isHidden = true
             }
         case .addingNewWithSetupIntent, .addingNewPaymentMethodAttachToCustomer:
             actionButton.isHidden = false
@@ -233,7 +249,8 @@ class SavedPaymentMethodsViewController: UIViewController {
                     self.navigationBar.additionalButton.removeTarget(
                         self, action: #selector(didSelectEditSavedPaymentMethodsButton),
                         for: .touchUpInside)
-                    return savedPaymentMethods.isEmpty ? .close(showAdditionalButton: false) : .back
+                    //return savedPaymentMethods.isEmpty ? .close(showAdditionalButton: false) : .back
+                    return .backs
                 }
             }())
 
@@ -251,15 +268,31 @@ class SavedPaymentMethodsViewController: UIViewController {
         }
     }
     private func didTapActionButton() {
-        guard mode == .addingNewWithSetupIntent || mode == .addingNewPaymentMethodAttachToCustomer,
-        let newPaymentOption = addPaymentMethodViewController?.paymentOption else {
-            //Button will only appear while adding a new payment method
-            return
-        }
-        if mode == .addingNewWithSetupIntent {
+        switch (mode) {
+        case .addingNewWithSetupIntent:
+            guard let newPaymentOption = addPaymentMethodViewController?.paymentOption else {
+                return
+            }
             addPaymentOption(paymentOption: newPaymentOption)
-        } else if mode == .addingNewPaymentMethodAttachToCustomer {
+        case .addingNewPaymentMethodAttachToCustomer:
+            guard let newPaymentOption = addPaymentMethodViewController?.paymentOption else {
+                return
+            }
             addPaymentOptionToCustomer(paymentOption: newPaymentOption)
+        case .selectingSaved:
+            if let selectedPaymentOption = savedPaymentOptionsViewController.selectedPaymentOption {
+                switch(selectedPaymentOption) {
+                case .applePay:
+                    let paymentOptionSelection = SavedPaymentMethodsSheet.PaymentOptionSelection.applePay()
+                    self.setSelectablePaymentMethodAndClose(paymentOptionSelection: paymentOptionSelection)
+                case .saved(let paymentMethod):
+                    let paymentOptionSelection = SavedPaymentMethodsSheet.PaymentOptionSelection.savedPaymentMethod(paymentMethod)
+                    self.setSelectablePaymentMethodAndClose(paymentOptionSelection: paymentOptionSelection)
+                default:
+                    assertionFailure("Selected payment method was something other than a saved payment method or apple pay")
+                }
+
+            }
         }
 
     }
@@ -448,12 +481,10 @@ extension SavedPaymentMethodsViewController: SavedPaymentMethodsCollectionViewCo
                     self.initAddPaymentMethodViewController(intent: nil)
                     self.updateUI()
                 }
-            case .saved(let paymentMethod):
-                let paymentOptionSelection = SavedPaymentMethodsSheet.PaymentOptionSelection.savedPaymentMethod(paymentMethod)
-                self.setSelectablePaymentMethodAndClose(paymentOptionSelection: paymentOptionSelection)
+            case .saved:
+                updateUI(animated: true)
             case .applePay:
-                let paymentOptionSelection = SavedPaymentMethodsSheet.PaymentOptionSelection.applePay()
-                self.setSelectablePaymentMethodAndClose(paymentOptionSelection: paymentOptionSelection)
+                updateUI(animated: true)
             }
         }
     private func initAddPaymentMethodViewController(intent: Intent?) {
