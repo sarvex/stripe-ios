@@ -92,7 +92,7 @@ import UIKit
         }
         selectCountry(index: index, shouldUpdateDefaultNumber: shouldUpdateDefaultNumber)
     }
-    
+
     public func clearPhoneNumber() {
         textFieldElement.setText("")
     }

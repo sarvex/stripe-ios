@@ -6,8 +6,8 @@
 //
 
 import StripeIdentity
-import UIKit
 @_spi(STP) import StripeUICore
+import UIKit
 
 class PlaygroundViewController: UIViewController {
 
@@ -34,15 +34,15 @@ class PlaygroundViewController: UIViewController {
 
     @IBOutlet weak var otpCheckSelector: UISegmentedControl!
     @IBOutlet weak var requirePhoneNumberSwitch: UISwitch!
-    
+
     @IBOutlet weak var otpCheckContainerView: UIStackView!
     @IBOutlet weak var phoneOtpContainerView: UIStackView!
-    
+
     @IBOutlet weak var fallbackToDocumentSwitch: UISwitch!
-    private let phoneElement:PhoneNumberElement
-    
+    private let phoneElement: PhoneNumberElement
+
     private let phoneView: UIView
-    
+
     enum InvocationType: CaseIterable {
         case native
         case web
@@ -60,7 +60,7 @@ class PlaygroundViewController: UIViewController {
         case passport
         case idCard = "id_card"
     }
-    
+
     enum OtpCheckType: String, CaseIterable {
         case attempt = "attempt"
         case none = "none"
@@ -98,9 +98,9 @@ class PlaygroundViewController: UIViewController {
         phoneElement = PhoneNumberElement()
         phoneView = phoneElement.view
         super.init(coder: aDecoder)
-        
+
     }
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -115,7 +115,7 @@ class PlaygroundViewController: UIViewController {
 
         phoneView.isHidden = true
         phoneOtpContainerView.addArrangedSubview(phoneView)
-        
+
         activityIndicator.hidesWhenStopped = true
         verifyButton.addTarget(self, action: #selector(didTapVerifyButton), for: .touchUpInside)
     }
@@ -124,16 +124,16 @@ class PlaygroundViewController: UIViewController {
     func didTapVerifyButton() {
         requestVerificationSession()
     }
-    
+
     @IBAction func fallbackToDocumentValueChanged(_ uiSwitch: UISwitch) {
         documentOptionsContainerView.isHidden = !uiSwitch.isOn
         otpCheckContainerView.isHidden = !uiSwitch.isOn
     }
-    
+
     @IBAction func requireOtpSwitchValueChanged(_ uiSwitch: UISwitch) {
         phoneView.isHidden = !uiSwitch.isOn
     }
-    
+
     func requestVerificationSession() {
         // Disable the button while we make the request
         updateButtonState(isLoading: true)
@@ -148,9 +148,9 @@ class PlaygroundViewController: UIViewController {
         var requestDict: [String: Any] = [
             "type": verificationType.rawValue
         ]
-        
+
         var options: [String: Any] = [:]
-        
+
         switch verificationType {
         case .document:
             options = [
@@ -160,30 +160,30 @@ class PlaygroundViewController: UIViewController {
                    "require_live_capture": requireLiveCaptureSwitch.isOn,
                    "require_matching_selfie": requireSelfieSwitch.isOn,
                    "require_address": requireAddressSwitch.isOn,
-               ]
+               ],
             ]
-            if(requirePhoneNumberSwitch.isOn) {
+            if requirePhoneNumberSwitch.isOn {
                 options["phone"] = [
                     "require_verification": true
                 ]
                 requestDict["provided_details"] = [
-                    "phone" : phoneElement.phoneNumber?.string(as: .e164)
+                    "phone": phoneElement.phoneNumber?.string(as: .e164)
                 ]
             }
         case .idNumber:
-            if(requirePhoneNumberSwitch.isOn) {
+            if requirePhoneNumberSwitch.isOn {
                 options["phone"] = [
                     "require_verification": true
                 ]
                 requestDict["provided_details"] = [
-                    "phone" : phoneElement.phoneNumber?.string(as: .e164)
+                    "phone": phoneElement.phoneNumber?.string(as: .e164)
                 ]
             }
         case .address:
             // no-op
             break
         case .phone:
-            if(fallbackToDocumentSwitch.isOn) {
+            if fallbackToDocumentSwitch.isOn {
                 options = [
                    "document": [
                     "allowed_types": documentAllowedTypes.map { $0.rawValue },
@@ -196,14 +196,13 @@ class PlaygroundViewController: UIViewController {
                     "check": OtpCheckType.allCases[otpCheckSelector.selectedSegmentIndex].rawValue
                    ],
                    "phone_records": [
-                    "fallback" : "document"
-                   ]
+                    "fallback": "document"
+                   ],
                 ]
             }
         }
         requestDict["options"] = options
-        
-        
+
         let requestJson = try! JSONSerialization.data(withJSONObject: requestDict, options: [])
 
         var urlRequest = URLRequest(url: url)
