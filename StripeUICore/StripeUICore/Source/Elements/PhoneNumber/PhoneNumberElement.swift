@@ -92,6 +92,10 @@ import UIKit
         }
         selectCountry(index: index, shouldUpdateDefaultNumber: shouldUpdateDefaultNumber)
     }
+    
+    public func clearPhoneNumber() {
+        textFieldElement.setText("")
+    }
 
     // MARK: - Element protocol
     public func beginEditing() -> Bool {
