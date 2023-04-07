@@ -379,9 +379,15 @@ class SavedPaymentMethodsViewController: UIViewController {
             self.delegate?.savedPaymentMethodsViewControllerDidFinish(self)
         }
     }
-    private func handleCancel() {
-        self.savedPaymentMethodsSheetDelegate?.didCancel()
-        delegate?.savedPaymentMethodsViewControllerDidCancel(self)
+    private func handleDismissSheet() {
+        if savedPaymentOptionsViewController.originalSelectedSavedPaymentMethod != nil &&
+            savedPaymentOptionsViewController.selectedPaymentOption == nil {
+            self.savedPaymentMethodsSheetDelegate?.didClose(with: nil)
+            delegate?.savedPaymentMethodsViewControllerDidFinish(self)
+        } else {
+            self.savedPaymentMethodsSheetDelegate?.didCancel()
+            delegate?.savedPaymentMethodsViewControllerDidCancel(self)
+        }
     }
 
     @objc
@@ -398,7 +404,7 @@ extension SavedPaymentMethodsViewController: BottomSheetContentViewController {
 
     func didTapOrSwipeToDismiss() {
         if isDismissable {
-            handleCancel()
+            handleDismissSheet()
         }
     }
 
@@ -411,7 +417,7 @@ extension SavedPaymentMethodsViewController: BottomSheetContentViewController {
 /// :nodoc:
 extension SavedPaymentMethodsViewController: SheetNavigationBarDelegate {
     func sheetNavigationBarDidClose(_ sheetNavigationBar: SheetNavigationBar) {
-        handleCancel()
+        handleDismissSheet()
 
         if savedPaymentOptionsViewController.isRemovingPaymentMethods {
             savedPaymentOptionsViewController.isRemovingPaymentMethods = false
@@ -503,16 +509,14 @@ extension SavedPaymentMethodsViewController: SavedPaymentMethodsCollectionViewCo
             configuration.customerContext.detachPaymentMethod?(fromCustomer: paymentMethod, completion: { error in
                 if let error = error {
                     self.savedPaymentMethodsSheetDelegate?.didFail(with: .detachPaymentMethod(error))
+                    //TODO: display error
                     return
                 }
-                //let removedPaymentOption = SavedPaymentMethodsSheet.PaymentOptionSelection.savedPaymentMethod(paymentMethod)
-                //self.savedPaymentMethodsSheetDelegate?.didDetachPaymentMethod(with: removedPaymentOption)
                 self.configuration.customerContext.setSelectedPaymentMethodOption?(paymentOption: nil, completion: { error in
                     if let error = error {
                         self.savedPaymentMethodsSheetDelegate?.didFail(with: .setSelectedPaymentMethodOption(error))
                         // If this fails, we should keep going -- not a whole lot we can do here.
                     }
-                    //TODO: Auto select next payment method available (but don't confirm it)
                 })
                 
             })

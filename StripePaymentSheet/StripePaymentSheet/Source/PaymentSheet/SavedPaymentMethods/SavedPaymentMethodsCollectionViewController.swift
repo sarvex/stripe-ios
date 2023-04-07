@@ -128,7 +128,7 @@ class SavedPaymentMethodsCollectionViewController: UIViewController {
     }
     var savedPaymentMethods: [STPPaymentMethod] {
         didSet {
-            updateUI()
+            retrieveSelectedPaymentMethodAndUpdateUI()
         }
     }
     /// Whether or not there are any payment options we can show
@@ -186,7 +186,7 @@ class SavedPaymentMethodsCollectionViewController: UIViewController {
         self.delegate = delegate
         self.savedPaymentMethodsSheetDelegate = savedPaymentMethodsSheetDelegate
         super.init(nibName: nil, bundle: nil)
-        updateUI()
+        updateUI(selectedSavedPaymentOption: nil)
     }
 
     required init?(coder: NSCoder) {
@@ -208,11 +208,12 @@ class SavedPaymentMethodsCollectionViewController: UIViewController {
             collectionView.topAnchor.constraint(equalTo: view.topAnchor),
             collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
-        updateUI()
+        retrieveSelectedPaymentMethodAndUpdateUI()
     }
+    
 
     // MARK: - Private methods
-    private func updateUI() {
+    private func retrieveSelectedPaymentMethodAndUpdateUI() {
         if let retrieveSelectedPaymentMethodID = self.savedPaymentMethodsConfiguration.customerContext.retrieveSelectedPaymentMethodOption {
             retrieveSelectedPaymentMethodID { paymentMethodOption, error in
                 if let error = error {
@@ -222,9 +223,7 @@ class SavedPaymentMethodsCollectionViewController: UIViewController {
                 }
                 if let selectedSavedPaymentOption = paymentMethodOption {
                     self.updateUI(selectedSavedPaymentOption: selectedSavedPaymentOption)
-                    if self.originalSelectedSavedPaymentMethod == nil {
-                        self.originalSelectedSavedPaymentMethod = selectedSavedPaymentOption
-                    }
+                    self.originalSelectedSavedPaymentMethod = selectedSavedPaymentOption
                 } else {
                     self.updateUI(selectedSavedPaymentOption: nil)
                 }
