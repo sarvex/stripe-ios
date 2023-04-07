@@ -4,7 +4,7 @@
 //
 
 public protocol SavedPaymentMethodsSheetDelegate: AnyObject {
-    func didCloseWith(paymentOptionSelection: SavedPaymentMethodsSheet.PaymentOptionSelection?)
-    func didDetachPaymentMethod(paymentOptionSelection: SavedPaymentMethodsSheet.PaymentOptionSelection)
-    func didError(_ error: SavedPaymentMethodsSheetError)
+    func didClose(with paymentOptionSelection: SavedPaymentMethodsSheet.PaymentOptionSelection?)
+    func didCancel()
+    func didFail(with error: SavedPaymentMethodsSheetError)
 }

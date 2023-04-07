@@ -142,6 +142,7 @@ class SavedPaymentMethodsCollectionViewController: UIViewController {
         }
     }
     weak var delegate: SavedPaymentMethodsCollectionViewControllerDelegate?
+    weak var savedPaymentMethodsSheetDelegate: SavedPaymentMethodsSheetDelegate?
     var appearance = PaymentSheet.Appearance.default
 
     // MARK: - Private Properties
@@ -174,6 +175,7 @@ class SavedPaymentMethodsCollectionViewController: UIViewController {
         savedPaymentMethodsConfiguration: SavedPaymentMethodsSheet.Configuration,
         configuration: Configuration,
         appearance: PaymentSheet.Appearance,
+        savedPaymentMethodsSheetDelegate: SavedPaymentMethodsSheetDelegate? = nil,
         delegate: SavedPaymentMethodsCollectionViewControllerDelegate? = nil
     ) {
         self.savedPaymentMethods = savedPaymentMethods
@@ -181,6 +183,7 @@ class SavedPaymentMethodsCollectionViewController: UIViewController {
         self.configuration = configuration
         self.appearance = appearance
         self.delegate = delegate
+        self.savedPaymentMethodsSheetDelegate = savedPaymentMethodsSheetDelegate
         super.init(nibName: nil, bundle: nil)
         updateUI()
     }
@@ -211,12 +214,16 @@ class SavedPaymentMethodsCollectionViewController: UIViewController {
     private func updateUI() {
         if let retrieveSelectedPaymentMethodID = self.savedPaymentMethodsConfiguration.customerContext.retrieveSelectedPaymentMethodOption {
             retrieveSelectedPaymentMethodID { paymentMethodOption, error in
-                guard error == nil,
-                      let defaultPaymentMethod = paymentMethodOption else {
+                if let error = error {
+                    self.savedPaymentMethodsSheetDelegate?.didFail(with: .retrieveSelectedPaymenMethodOption(error))
                     self.updateUI(defaultPaymentMethod: nil)
                     return
                 }
-                self.updateUI(defaultPaymentMethod: defaultPaymentMethod)
+                if let defaultPaymentMethod = paymentMethodOption {
+                    self.updateUI(defaultPaymentMethod: defaultPaymentMethod)
+                } else {
+                    self.updateUI(defaultPaymentMethod: nil)
+                }
             }
         } else {
             self.updateUI(defaultPaymentMethod: nil)

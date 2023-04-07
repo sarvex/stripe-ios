@@ -92,7 +92,7 @@ public class SavedPaymentMethodsSheet {
             let error = SavedPaymentMethodsSheetError.unknown(
                 debugDescription: "presentingViewController is already presenting a view controller"
             )
-            delegate?.didError(error)
+            delegate?.didFail(with: error)
             return
         }
         loadPaymentMethods() { result in
@@ -100,7 +100,7 @@ public class SavedPaymentMethodsSheet {
             case .success(let savedPaymentMethods):
                 self.present(from: presentingViewController, savedPaymentMethods: savedPaymentMethods)
             case .failure(let error):
-                delegate?.didError(.errorFetchingSavedPaymentMethods(error))
+                delegate?.didFail(with: .errorFetchingSavedPaymentMethods(error))
                 return
             }
         }

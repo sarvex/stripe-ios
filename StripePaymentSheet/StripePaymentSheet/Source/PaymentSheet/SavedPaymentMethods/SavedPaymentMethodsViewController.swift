@@ -71,6 +71,7 @@ class SavedPaymentMethodsViewController: UIViewController {
                 autoSelectDefaultBehavior: savedPaymentMethods.isEmpty ? .none : .onlyIfMatched
             ),
             appearance: configuration.appearance,
+            savedPaymentMethodsSheetDelegate: savedPaymentMethodsSheetDelegate,
             delegate: self
         )
     }()
@@ -293,18 +294,18 @@ class SavedPaymentMethodsViewController: UIViewController {
         if case .new(let confirmParams) = paymentOption  {
             configuration.apiClient.createPaymentMethod(with: confirmParams.paymentMethodParams) { paymentMethod, error in
                 if let error = error {
-                    self.savedPaymentMethodsSheetDelegate?.didError(.createPaymentMethod(error))
+                    self.savedPaymentMethodsSheetDelegate?.didFail(with: .createPaymentMethod(error))
                     return
                 }
                 guard let paymentMethod = paymentMethod else {
                     // TODO: test UI to make sure we fail gracefully
-                    self.savedPaymentMethodsSheetDelegate?.didError(.unknown(debugDescription: "No payment method available"))
+                    self.savedPaymentMethodsSheetDelegate?.didFail(with: .unknown(debugDescription: "No payment method available"))
                     return
                 }
                 self.configuration.customerContext.attachPaymentMethod(toCustomer: paymentMethod) { error in
                     guard error == nil else {
                         //TODO: Handle errors properly
-                        self.savedPaymentMethodsSheetDelegate?.didError(.attachPaymentMethod(error!))
+                        self.savedPaymentMethodsSheetDelegate?.didFail(with: .attachPaymentMethod(error!))
                         return
                     }
                     let paymentOptionSelection = SavedPaymentMethodsSheet.PaymentOptionSelection.savedPaymentMethod(paymentMethod)
@@ -334,36 +335,20 @@ class SavedPaymentMethodsViewController: UIViewController {
             let persistablePaymentOption = paymentOptionSelection.persistablePaymentMethodOption()
             setSelectedPaymentMethodOption(persistablePaymentOption) { error in
                 if let error = error {
-                    self.savedPaymentMethodsSheetDelegate?.didError(.persistLastSelectedPaymentMethod(error))
+                    self.savedPaymentMethodsSheetDelegate?.didFail(with: .setSelectedPaymentMethodOption(error))
+                } else {
+                    self.savedPaymentMethodsSheetDelegate?.didClose(with: paymentOptionSelection)
+                    self.delegate?.savedPaymentMethodsViewControllerDidFinish(self)
                 }
-                self.savedPaymentMethodsSheetDelegate?.didCloseWith(paymentOptionSelection: paymentOptionSelection)
-                self.delegate?.savedPaymentMethodsViewControllerDidFinish(self)
             }
         } else {
-            self.savedPaymentMethodsSheetDelegate?.didCloseWith(paymentOptionSelection: paymentOptionSelection)
+            self.savedPaymentMethodsSheetDelegate?.didClose(with: paymentOptionSelection)
             self.delegate?.savedPaymentMethodsViewControllerDidFinish(self)
         }
     }
-    private func setSelectablePaymentMethodOnCancel() {
-        if case .saved(let paymentMethod) = self.savedPaymentOptionsViewController.selectedPaymentOption {
-            let paymentOptionSelection = SavedPaymentMethodsSheet.PaymentOptionSelection.savedPaymentMethod(paymentMethod)
-            let persistablePaymentOption = paymentOptionSelection.persistablePaymentMethodOption()
-            if let setSelectedPaymentMethodOption = self.configuration.customerContext.setSelectedPaymentMethodOption {
-                setSelectedPaymentMethodOption(persistablePaymentOption) { error in
-                    if let error = error {
-                        self.savedPaymentMethodsSheetDelegate?.didError(.persistLastSelectedPaymentMethod(error))
-                    }
-                    self.savedPaymentMethodsSheetDelegate?.didCloseWith(paymentOptionSelection: paymentOptionSelection)
-                    self.delegate?.savedPaymentMethodsViewControllerDidCancel(self)
-                }
-            } else {
-                self.savedPaymentMethodsSheetDelegate?.didCloseWith(paymentOptionSelection: nil)
-                delegate?.savedPaymentMethodsViewControllerDidCancel(self)
-            }
-        } else {
-            self.savedPaymentMethodsSheetDelegate?.didCloseWith(paymentOptionSelection: nil)
-            delegate?.savedPaymentMethodsViewControllerDidCancel(self)
-        }
+    private func handleCancel() {
+        self.savedPaymentMethodsSheetDelegate?.didCancel()
+        delegate?.savedPaymentMethodsViewControllerDidCancel(self)
     }
 
     @objc
@@ -380,7 +365,7 @@ extension SavedPaymentMethodsViewController: BottomSheetContentViewController {
 
     func didTapOrSwipeToDismiss() {
         if isDismissable {
-            setSelectablePaymentMethodOnCancel()
+            handleCancel()
         }
     }
 
@@ -393,7 +378,7 @@ extension SavedPaymentMethodsViewController: BottomSheetContentViewController {
 /// :nodoc:
 extension SavedPaymentMethodsViewController: SheetNavigationBarDelegate {
     func sheetNavigationBarDidClose(_ sheetNavigationBar: SheetNavigationBar) {
-        setSelectablePaymentMethodOnCancel()
+        handleCancel()
 
         if savedPaymentOptionsViewController.isRemovingPaymentMethods {
             savedPaymentOptionsViewController.isRemovingPaymentMethods = false
@@ -441,7 +426,7 @@ extension SavedPaymentMethodsViewController: SavedPaymentMethodsCollectionViewCo
                     } else {
                         createSetupIntentHandler({ result in
                             guard let clientSecret = result else {
-                                self.savedPaymentMethodsSheetDelegate?.didError(.setupIntentClientSecretInvalid)
+                                self.savedPaymentMethodsSheetDelegate?.didFail(with: .setupIntentClientSecretInvalid)
                                 return
                             }
                             self.fetchSetupIntent(clientSecret: clientSecret) { result in
@@ -452,7 +437,7 @@ extension SavedPaymentMethodsViewController: SavedPaymentMethodsCollectionViewCo
                                     self.initAddPaymentMethodViewController(intent: setupIntent)
                                     
                                 case .failure(let error):
-                                    self.savedPaymentMethodsSheetDelegate?.didError(.setupIntentFetchError(error))
+                                    self.savedPaymentMethodsSheetDelegate?.didFail(with: .setupIntentFetchError(error))
                                 }
                                 self.updateUI()
                             }
@@ -486,11 +471,19 @@ extension SavedPaymentMethodsViewController: SavedPaymentMethodsCollectionViewCo
             }
             configuration.customerContext.detachPaymentMethod?(fromCustomer: paymentMethod, completion: { error in
                 if let error = error {
-                    self.savedPaymentMethodsSheetDelegate?.didError(.detachPaymentMethod(error))
+                    self.savedPaymentMethodsSheetDelegate?.didFail(with: .detachPaymentMethod(error))
                     return
                 }
-                let removedPaymentOption = SavedPaymentMethodsSheet.PaymentOptionSelection.savedPaymentMethod(paymentMethod)
-                self.savedPaymentMethodsSheetDelegate?.didDetachPaymentMethod(paymentOptionSelection: removedPaymentOption)
+                //let removedPaymentOption = SavedPaymentMethodsSheet.PaymentOptionSelection.savedPaymentMethod(paymentMethod)
+                //self.savedPaymentMethodsSheetDelegate?.didDetachPaymentMethod(with: removedPaymentOption)
+                self.configuration.customerContext.setSelectedPaymentMethodOption?(paymentOption: nil, completion: { error in
+                    if let error = error {
+                        self.savedPaymentMethodsSheetDelegate?.didFail(with: .setSelectedPaymentMethodOption(error))
+                        // If this fails, we should keep going -- not a whole lot we can do here.
+                    }
+                    //TODO: Auto select next payment method available (but don't confirm it)
+                })
+                
             })
         }
 }

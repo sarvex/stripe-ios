@@ -150,12 +150,12 @@ class SavedPaymentMethodSheetTestPlayground: UIViewController {
         }
     }
     
-    func walletModeConfiguration(customerId: String, ephemeralKey: String) -> SavedPaymentMethodsSheet.Configuration {
+    func savedPaymentMethodSheetConfiguration(customerId: String, ephemeralKey: String) -> SavedPaymentMethodsSheet.Configuration {
         let customerContext = STPCustomerContext(customerId: customerId, ephemeralKeySecret: ephemeralKey)
         self.customerContext = customerContext
         var configuration = SavedPaymentMethodsSheet.Configuration(customerContext: customerContext,
-                                                                   applePayEnabled: applePayEnabled(),
-                                                                   createSetupIntentHandler: setupIntentHandler(customerId: customerId))
+                                                                   applePayEnabled: applePayEnabled())
+        configuration.createSetupIntentHandler = setupIntentHandler(customerId: customerId)
         configuration.appearance = appearance
         configuration.returnURL = "payments-example://stripe-redirect"
         configuration.selectingSavedCustomHeaderText = selectingSavedCustomHeaderTextField.text
@@ -211,8 +211,8 @@ extension SavedPaymentMethodSheetTestPlayground {
             StripeAPI.defaultPublishableKey = publishableKey
 
             DispatchQueue.main.async {
-                let walletModeConfiguration = self.walletModeConfiguration(customerId: customerId, ephemeralKey: ephemeralKey)
-                self.savedPaymentMethodsSheet = SavedPaymentMethodsSheet(configuration: walletModeConfiguration)
+                let configuration = self.savedPaymentMethodSheetConfiguration(customerId: customerId, ephemeralKey: ephemeralKey)
+                self.savedPaymentMethodsSheet = SavedPaymentMethodsSheet(configuration: configuration)
 
                 self.selectPaymentMethodButton.isEnabled = true
 
@@ -226,12 +226,16 @@ extension SavedPaymentMethodSheetTestPlayground {
 }
 
 extension SavedPaymentMethodSheetTestPlayground: SavedPaymentMethodsSheetDelegate {
-    func didCloseWith(paymentOptionSelection: SavedPaymentMethodsSheet.PaymentOptionSelection?) {
+    func didClose(with paymentOptionSelection: SavedPaymentMethodsSheet.PaymentOptionSelection?) {
         self.paymentOptionSelection = paymentOptionSelection
         self.updateButtons()
     }
-    
-    func didError(_ error: SavedPaymentMethodsSheetError) {
+
+    func didCancel() {
+        self.updateButtons()
+    }
+
+    func didFail(with error: SavedPaymentMethodsSheetError) {
         switch(error) {
         case .setupIntentClientSecretInvalid:
             print("Intent invalid...")
@@ -242,9 +246,6 @@ extension SavedPaymentMethodSheetTestPlayground: SavedPaymentMethodsSheetDelegat
         default:
             print("something went wrong: \(error)")
         }
-    }
-    func didDetachPaymentMethod(paymentOptionSelection: SavedPaymentMethodsSheet.PaymentOptionSelection) {
-        print("detached payment option: \(paymentOptionSelection.displayData().label)")
     }
 }
 
