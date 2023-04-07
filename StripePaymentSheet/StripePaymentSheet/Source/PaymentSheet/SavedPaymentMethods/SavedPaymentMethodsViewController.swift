@@ -250,7 +250,7 @@ class SavedPaymentMethodsViewController: UIViewController {
                         self, action: #selector(didSelectEditSavedPaymentMethodsButton),
                         for: .touchUpInside)
                     //return savedPaymentMethods.isEmpty ? .close(showAdditionalButton: false) : .back
-                    return .backs
+                    return .back
                 }
             }())
 
